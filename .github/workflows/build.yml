@@ -38,15 +38,18 @@ jobs:
 
       - name: Update package.json voor bundled backend
         run: |
-          $pkg = Get-Content package.json | ConvertFrom-Json
-          $pkg.build.extraResources = @(
-            @{from="backend-dist/"; to="backend/"; filter=@("**/*")},
-            @{from="static/"; to="static/"; filter=@("**/*")}
-          )
-          $tag = "${{ github.ref_name }}"
-          $pkg.build.win.artifactName = "Brouwerij.Admin-${tag}-windows.exe"
-          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
-        shell: pwsh
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json'));
+            const tag = '${{ github.ref_name }}';
+            pkg.build.extraResources = [
+              { from: 'backend-dist/', to: 'backend/', filter: ['**/*'] },
+              { from: 'static/', to: 'static/', filter: ['**/*'] }
+            ];
+            if (!pkg.build.win) pkg.build.win = {};
+            pkg.build.win.artifactName = 'Brouwerij.Admin-' + tag + '-windows.exe';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          " 
 
       - name: Install npm dependencies
         run: npm install
