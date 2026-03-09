@@ -81,13 +81,14 @@ jobs:
           cp dist/server backend-dist/server
           chmod +x backend-dist/server
 
-      - name: Update package.json for bundled backend and use zip target
+      - name: Update package.json for bundled backend and zip target
         run: |
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json'));
             pkg.build.extraResources = [{ from: 'backend-dist/', to: 'backend/', filter: ['**/*'] }];
             pkg.build.mac.target = [{ target: 'zip', arch: ['x64', 'arm64'] }];
+            pkg.build.mac.identity = null;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
 
@@ -98,12 +99,46 @@ jobs:
         run: npm run build:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Ad-hoc codesign (voorkomt beschadigd-melding)
+        run: |
+          # Zoek de gebouwde .app
+          if [ -d "dist/mac-arm64/Brouwerij Admin.app" ]; then
+            ARM_APP="dist/mac-arm64/Brouwerij Admin.app"
+          fi
+          if [ -d "dist/mac/Brouwerij Admin.app" ]; then
+            X64_APP="dist/mac/Brouwerij Admin.app"
+          fi
+
+          for APP in "$ARM_APP" "$X64_APP"; do
+            if [ -n "$APP" ] && [ -d "$APP" ]; then
+              echo "Signing: $APP"
+              xattr -cr "$APP"
+              codesign --force --deep --sign - "$APP"
+              codesign --verify --deep "$APP" && echo "OK: $APP"
+            fi
+          done
+
+      - name: Zip gesigneerde apps
+        run: |
+          if [ -d "dist/mac-arm64/Brouwerij Admin.app" ]; then
+            cd "dist/mac-arm64"
+            zip -r "../../Brouwerij.Admin-arm64-mac.zip" "Brouwerij Admin.app"
+            cd ../..
+          fi
+          if [ -d "dist/mac/Brouwerij Admin.app" ]; then
+            cd "dist/mac"
+            zip -r "../../Brouwerij.Admin-x64-mac.zip" "Brouwerij Admin.app"
+            cd ../..
+          fi
+          ls *.zip
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: mac-app
-          path: dist/*.zip
+          path: "*.zip"
 
   # ── Release ──────────────────────────────────────────────────────────────────
   create-release:

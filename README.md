@@ -16,19 +16,14 @@ Standalone desktop applicatie voor nano brouwerij administratie. Beheer batches,
 
 ### macOS (Apple Silicon — M1/M2/M3/M4)
 
-1. Download **`Brouwerij.Admin-1.2.0-arm64-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+1. Download **`Brouwerij.Admin-arm64-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
 2. Pak het zip-bestand uit (dubbelklik)
 3. Sleep **Brouwerij Admin.app** naar je **Programma's** map
-4. Open **Terminal** (zoek via Spotlight: ⌘+Spatie → typ "Terminal")
-5. Plak dit commando en druk op Enter:
-   ```
-   xattr -cr /Applications/Brouwerij\ Admin.app
-   ```
-6. Start de app nu gewoon via dubbelklik
+4. Dubbelklik om te starten
 
 ### macOS (Intel)
 
-1. Download **`Brouwerij.Admin-1.2.0-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+1. Download **`Brouwerij.Admin-x64-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
 2. Volg dezelfde stappen als hierboven bij Apple Silicon
 
 ---
@@ -62,11 +57,7 @@ Via het menu **Bestand → Data map openen** open je de map direct.
 De app is niet voorzien van een betaald code-signing certificaat. De app is volledig open source en veilig — je kunt de broncode bekijken in deze repository.
 
 **macOS zegt "beschadigd en kan niet worden geopend" — wat nu?**  
-Dit is een Gatekeeper quarantaine blokkade — de app is niet echt beschadigd. Open Terminal en voer uit:
-```
-xattr -cr /Applications/Brouwerij\ Admin.app
-```
-Daarna start de app gewoon via dubbelklik. Dit is nodig omdat de app geen betaald Apple Developer certificaat heeft.
+Download de nieuwste versie — vanaf v1.2.5 is de app ad-hoc gesigneerd en opent hij gewoon via dubbelklik.
 
 **Werkt de app ook als Home Assistant addon?**  
 Ja! De originele HA addon staat in de [Brew-admin-HA-App](https://github.com/jasperbom/Brew-admin-HA-App) repository.
