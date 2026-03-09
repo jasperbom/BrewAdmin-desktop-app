@@ -122,6 +122,10 @@ jobs:
       - name: Hermaak DMGs met gesigneerde apps
         run: |
           TAG="${{ github.ref_name }}"
+          # Unmount eventuele gemounte DMGs van de eerdere electron-builder stap
+          hdiutil detach /Volumes/Brouwerij\ Admin 2>/dev/null || true
+          hdiutil detach /Volumes/Brouwerij\ Admin\ 1 2>/dev/null || true
+
           for ARCH in x64 arm64; do
             if [ "$ARCH" = "arm64" ]; then
               SRCDIR="dist/mac-arm64"
@@ -131,6 +135,8 @@ jobs:
             APP="$SRCDIR/Brouwerij Admin.app"
             if [ -d "$APP" ]; then
               DMGNAME="Brouwerij.Admin-${TAG}-${ARCH}-mac.dmg"
+              # Unmount voor het geval hij nog gemount is
+              hdiutil detach /Volumes/Brouwerij\ Admin 2>/dev/null || true
               hdiutil create -volname "Brouwerij Admin" \
                 -srcfolder "$APP" \
                 -ov -format UDZO \
