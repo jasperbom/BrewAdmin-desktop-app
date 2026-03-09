@@ -220,12 +220,27 @@ function createWindow() {
       <p style="margin:0;color:#aaa;font-size:14px">Server wordt gestart…</p>
     </div></html>`);
 
+  // Wacht op server maar geef op als backend gecrasht is
+  const startupCheck = setInterval(() => {
+    if (!backendProcess) {
+      clearInterval(startupCheck);
+      dialog.showErrorBox(
+        'Opstartfout',
+        'De backend server is onverwacht gestopt.\n\n' +
+        'Start de app opnieuw. Als dit vaker gebeurt, controleer of poort 8099 vrij is.'
+      );
+      app.quit();
+    }
+  }, 500);
+
   waitForServer()
     .then(() => {
+      clearInterval(startupCheck);
       serverReady = true;
       if (mainWindow) mainWindow.loadURL(`http://localhost:${PORT}/`);
     })
     .catch((err) => {
+      clearInterval(startupCheck);
       dialog.showErrorBox('Opstartfout', `De backend server kon niet worden gestart:\n\n${err.message}`);
       app.quit();
     });
