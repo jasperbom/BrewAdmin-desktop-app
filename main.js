@@ -30,6 +30,16 @@ function findBackend() {
       ? path.join(base, 'server.exe')
       : path.join(base, 'server');
     if (fs.existsSync(bundledBin)) {
+      // macOS: verwijder quarantaine van de binary zodat hij niet geblokkeerd wordt
+      if (process.platform === 'darwin') {
+        try {
+          require('child_process').execSync(`xattr -cr "${bundledBin}"`, { timeout: 3000 });
+          require('child_process').execSync(`chmod +x "${bundledBin}"`, { timeout: 3000 });
+          console.log('xattr quarantaine verwijderd van backend binary');
+        } catch (e) {
+          console.warn('xattr mislukt (kan verdergaan):', e.message);
+        }
+      }
       console.log('Gebruik gebundelde binary:', bundledBin);
       return { exe: bundledBin, script: null };
     }
