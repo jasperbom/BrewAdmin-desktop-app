@@ -43,6 +43,8 @@ jobs:
             @{from="backend-dist/"; to="backend/"; filter=@("**/*")},
             @{from="static/"; to="static/"; filter=@("**/*")}
           )
+          $tag = "${{ github.ref_name }}"
+          $pkg.build.win.artifactName = "Brouwerij.Admin-${tag}-windows.exe"
           $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
         shell: pwsh
 
