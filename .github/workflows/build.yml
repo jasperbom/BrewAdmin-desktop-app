@@ -44,6 +44,8 @@ jobs:
 
       - name: Build Windows installer
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -76,31 +78,29 @@ jobs:
           cp dist/server backend-dist/server
           chmod +x backend-dist/server
 
-      - name: Update package.json for bundled backend
+      - name: Update package.json for bundled backend and use zip target
         run: |
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json'));
             pkg.build.extraResources = [{ from: 'backend-dist/', to: 'backend/', filter: ['**/*'] }];
+            pkg.build.mac.target = [{ target: 'zip', arch: ['x64', 'arm64'] }];
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
 
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build macOS DMG
+      - name: Build macOS app
         run: npm run build:mac
         env:
-          # Optioneel: voeg hier je Apple codesigning credentials toe
-          # CSC_LINK: ${{ secrets.MAC_CERT }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mac-dmg
-          path: dist/*.dmg
+          name: mac-app
+          path: dist/*.zip
 
   # ── Release ──────────────────────────────────────────────────────────────────
   create-release:
@@ -117,7 +117,7 @@ jobs:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          name: mac-dmg
+          name: mac-app
           path: dist/
 
       - name: Create GitHub Release
