@@ -12,12 +12,22 @@ import json
 import os
 from pathlib import Path
 
-# Paths configurable via env vars (voor Desktop app) met fallback voor HA addon
+import sys
+
+# Paden via command-line args of env vars, met fallback voor HA addon
 _default_data = Path('/data')
 _default_static = Path('/app/static/index.html')
 
-DATA_DIR = Path(os.environ.get('DATA_DIR', str(_default_data)))
-STATIC_FILE = Path(os.environ.get('STATIC_FILE', str(_default_static)))
+# Command-line: server.py <data_dir> <static_file>
+if len(sys.argv) >= 3:
+    DATA_DIR = Path(sys.argv[1])
+    STATIC_FILE = Path(sys.argv[2])
+elif len(sys.argv) >= 2:
+    DATA_DIR = Path(sys.argv[1])
+    STATIC_FILE = Path(os.environ.get('STATIC_FILE', str(_default_static)))
+else:
+    DATA_DIR = Path(os.environ.get('DATA_DIR', str(_default_data)))
+    STATIC_FILE = Path(os.environ.get('STATIC_FILE', str(_default_static)))
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 

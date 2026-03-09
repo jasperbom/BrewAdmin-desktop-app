@@ -104,15 +104,20 @@ function startBackend() {
   // Ruim eventueel oud process op dat de poort bezet houdt
   killPortAndStart();
 
-  const args = backend.script ? [backend.script] : [];
-
   // Bepaal pad naar de frontend HTML
   const staticFile = app.isPackaged
     ? path.join(process.resourcesPath, 'static', 'index.html')
     : path.join(__dirname, 'static', 'index.html');
 
-  const env = { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, STATIC_FILE: staticFile };
-  console.log('STATIC_FILE:', staticFile, 'bestaat:', require('fs').existsSync(staticFile));
+  console.log('DATA_DIR:', dataDir);
+  console.log('STATIC_FILE:', staticFile, '| bestaat:', fs.existsSync(staticFile));
+
+  // Geef paden als command-line argumenten mee (werkt ook in PyInstaller binary)
+  const args = backend.script
+    ? [backend.script, dataDir, staticFile]
+    : [dataDir, staticFile];
+
+  const env = { ...process.env, PORT: String(PORT) };
 
   console.log('Backend starten:', backend.exe, args.join(' '));
   backendProcess = spawn(backend.exe, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
