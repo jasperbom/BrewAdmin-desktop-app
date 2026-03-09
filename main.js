@@ -59,6 +59,23 @@ function findBackend() {
   return null; // niets gevonden
 }
 
+function killPortAndStart() {
+  // Dood elk process dat poort 8099 al bezet houdt
+  try {
+    if (process.platform === 'win32') {
+      require('child_process').execSync(
+        `for /f "tokens=5" %a in ('netstat -aon ^| find ":${PORT}"') do taskkill /F /PID %a`,
+        { shell: true, timeout: 3000 }
+      );
+    } else {
+      require('child_process').execSync(
+        `lsof -ti :${PORT} | xargs kill -9 2>/dev/null || true`,
+        { timeout: 3000 }
+      );
+    }
+  } catch (e) { /* geen process op die poort, prima */ }
+}
+
 function startBackend() {
   const dataDir = ensureDataDir();
   const backend = findBackend();
@@ -73,6 +90,9 @@ function startBackend() {
     app.quit();
     return;
   }
+
+  // Ruim eventueel oud process op dat de poort bezet houdt
+  killPortAndStart();
 
   const args = backend.script ? [backend.script] : [];
   const env = { ...process.env, PORT: String(PORT), DATA_DIR: dataDir };
