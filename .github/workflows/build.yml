@@ -39,7 +39,10 @@ jobs:
       - name: Update package.json voor bundled backend
         run: |
           $pkg = Get-Content package.json | ConvertFrom-Json
-          $pkg.build.extraResources = @(@{from="backend-dist/"; to="backend/"; filter=@("**/*")})
+          $pkg.build.extraResources = @(
+            @{from="backend-dist/"; to="backend/"; filter=@("**/*")},
+            @{from="static/"; to="static/"; filter=@("**/*")}
+          )
           $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
         shell: pwsh
 
