@@ -88,11 +88,15 @@ jobs:
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json'));
-            pkg.build.extraResources = [{ from: 'backend-dist/', to: 'backend/', filter: ['**/*'] }];
+            pkg.build.extraResources = [
+              { from: 'backend-dist/', to: 'backend/', filter: ['**/*'] },
+              { from: 'static/', to: 'static/', filter: ['**/*'] }
+            ];
             pkg.build.mac.identity = null;
+            // Alleen .app bouwen, geen DMG — wij maken de DMG zelf
             pkg.build.mac.target = [
-              { target: 'dmg', arch: ['x64'] },
-              { target: 'dmg', arch: ['arm64'] }
+              { target: 'dir', arch: ['x64'] },
+              { target: 'dir', arch: ['arm64'] }
             ];
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
@@ -100,43 +104,28 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build macOS DMGs (zonder Apple signing)
+      - name: Build macOS .app (geen DMG door electron-builder)
         run: npm run build:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Ad-hoc codesign .app bundles
+      - name: Ad-hoc codesign en maak DMGs
         run: |
-          for APP in "dist/mac/Brouwerij Admin.app" "dist/mac-arm64/Brouwerij Admin.app"; do
+          TAG="${{ github.ref_name }}"
+          for ARCH in x64 arm64; do
+            SRCDIR="dist/mac$([ $ARCH = arm64 ] && echo -arm64 || echo '')"
+            APP="$SRCDIR/Brouwerij Admin.app"
             if [ -d "$APP" ]; then
-              echo "Signing: $APP"
+              echo "=== Signing $ARCH ==="
               xattr -cr "$APP"
               find "$APP/Contents" -type f | while read f; do
                 codesign --force --sign - "$f" 2>/dev/null || true
               done
               codesign --force --deep --sign - "$APP"
-              codesign --verify --deep "$APP" && echo "OK: $APP"
-            fi
-          done
+              codesign --verify --deep "$APP" && echo "OK signed"
 
-      - name: Hermaak DMGs met gesigneerde apps
-        run: |
-          TAG="${{ github.ref_name }}"
-          # Unmount eventuele gemounte DMGs van de eerdere electron-builder stap
-          hdiutil detach /Volumes/Brouwerij\ Admin 2>/dev/null || true
-          hdiutil detach /Volumes/Brouwerij\ Admin\ 1 2>/dev/null || true
-
-          for ARCH in x64 arm64; do
-            if [ "$ARCH" = "arm64" ]; then
-              SRCDIR="dist/mac-arm64"
-            else
-              SRCDIR="dist/mac"
-            fi
-            APP="$SRCDIR/Brouwerij Admin.app"
-            if [ -d "$APP" ]; then
+              echo "=== DMG maken $ARCH ==="
               DMGNAME="Brouwerij.Admin-${TAG}-${ARCH}-mac.dmg"
-              # Unmount voor het geval hij nog gemount is
-              hdiutil detach /Volumes/Brouwerij\ Admin 2>/dev/null || true
               hdiutil create -volname "Brouwerij Admin" \
                 -srcfolder "$APP" \
                 -ov -format UDZO \
