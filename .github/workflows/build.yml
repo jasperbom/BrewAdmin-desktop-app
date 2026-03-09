@@ -1,0 +1,131 @@
+name: Build Electron App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  # ── Windows Build ────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bundle Python backend with PyInstaller
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile --name server backend/server.py
+          mkdir -p backend-dist
+          copy dist\server.exe backend-dist\server.exe
+        shell: cmd
+
+      - name: Update package.json for bundled backend
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $pkg.build.extraResources = @(@{from="backend-dist/"; to="backend/"; filter=@("**/*")})
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+        shell: pwsh
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Windows installer
+        run: npm run build:win
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+
+  # ── macOS Build ──────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bundle Python backend with PyInstaller
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile --name server backend/server.py
+          mkdir -p backend-dist
+          cp dist/server backend-dist/server
+          chmod +x backend-dist/server
+
+      - name: Update package.json for bundled backend
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json'));
+            pkg.build.extraResources = [{ from: 'backend-dist/', to: 'backend/', filter: ['**/*'] }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          "
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build macOS DMG
+        run: npm run build:mac
+        env:
+          # Optioneel: voeg hier je Apple codesigning credentials toe
+          # CSC_LINK: ${{ secrets.MAC_CERT }}
+          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg
+          path: dist/*.dmg
+
+  # ── Release ──────────────────────────────────────────────────────────────────
+  create-release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-dmg
+          path: dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

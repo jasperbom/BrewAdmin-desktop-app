@@ -1,0 +1,58 @@
+{
+  "name": "brouwerij-admin",
+  "version": "1.2.0",
+  "description": "Nano brouwerij administratie — batches, ingrediënten, accijns en voorraad",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac"
+  },
+  "build": {
+    "appId": "nl.jasperbom.brouwerij-admin",
+    "productName": "Brouwerij Admin",
+    "copyright": "© 2026 Jasper Bom",
+    "icon": "assets/icon",
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**",
+      "backend/**",
+      "static/**"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/",
+        "to": "backend/",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "title": "Brouwerij Admin",
+      "background": "assets/dmg-background.png",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  },
+  "keywords": ["homebrewing", "brewery", "home-assistant"],
+  "author": "Jasper Bom",
+  "license": "AGPL-3.0"
+}
