@@ -81,7 +81,7 @@ jobs:
           cp dist/server backend-dist/server
           chmod +x backend-dist/server
 
-      - name: Update package.json for bundled backend and zip target
+      - name: Update package.json — zip target, geen auto-signing
         run: |
           node -e "
             const fs = require('fs');
@@ -95,43 +95,36 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build macOS app
+      - name: Build macOS app (geen signing door electron-builder)
         run: npm run build:mac
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Ad-hoc codesign (voorkomt beschadigd-melding)
+      - name: Ad-hoc codesign alle .app bundles
         run: |
-          # Zoek de gebouwde .app
-          if [ -d "dist/mac-arm64/Brouwerij Admin.app" ]; then
-            ARM_APP="dist/mac-arm64/Brouwerij Admin.app"
-          fi
-          if [ -d "dist/mac/Brouwerij Admin.app" ]; then
-            X64_APP="dist/mac/Brouwerij Admin.app"
-          fi
-
-          for APP in "$ARM_APP" "$X64_APP"; do
-            if [ -n "$APP" ] && [ -d "$APP" ]; then
-              echo "Signing: $APP"
+          for APP in dist/mac*/Brouwerij\ Admin.app; do
+            if [ -d "$APP" ]; then
+              echo "▶ Signing: $APP"
               xattr -cr "$APP"
               codesign --force --deep --sign - "$APP"
-              codesign --verify --deep "$APP" && echo "OK: $APP"
+              codesign --verify --deep "$APP" && echo "✓ OK"
             fi
           done
 
-      - name: Zip gesigneerde apps
+      - name: Zip gesigneerde apps met versienummer
         run: |
-          if [ -d "dist/mac-arm64/Brouwerij Admin.app" ]; then
-            cd "dist/mac-arm64"
-            zip -r "../../Brouwerij.Admin-arm64-mac.zip" "Brouwerij Admin.app"
-            cd ../..
-          fi
-          if [ -d "dist/mac/Brouwerij Admin.app" ]; then
-            cd "dist/mac"
-            zip -r "../../Brouwerij.Admin-x64-mac.zip" "Brouwerij Admin.app"
-            cd ../..
-          fi
+          TAG="${{ github.ref_name }}"
+          for DIR in dist/mac dist/mac-arm64; do
+            APP="$DIR/Brouwerij Admin.app"
+            if [ -d "$APP" ]; then
+              ARCH=$(echo "$DIR" | grep -q "arm64" && echo "arm64" || echo "x64")
+              ZIPNAME="Brouwerij.Admin-${TAG}-${ARCH}-mac.zip"
+              echo "Zipping $APP → $ZIPNAME"
+              cd "$DIR"
+              zip -r "../../$ZIPNAME" "Brouwerij Admin.app"
+              cd ../..
+            fi
+          done
           ls *.zip
 
       - name: Upload macOS artifact
