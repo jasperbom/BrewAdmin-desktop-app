@@ -16,14 +16,17 @@ Standalone desktop applicatie voor nano brouwerij administratie. Beheer batches,
 
 ### macOS (Apple Silicon — M1/M2/M3/M4)
 
-1. Download **`Brouwerij.Admin-v1.2.5-arm64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+1. Download **`Brouwerij.Admin-v1.3.0-arm64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
 2. Dubbelklik op het DMG-bestand om het te openen
 3. Sleep **Brouwerij Admin** naar de **Programma's** map in het venster
-4. Start de app via Launchpad of Spotlight
+4. Dubbelklik op het app-icoon om te starten
+5. Als macOS vraagt of je zeker weet dat je de app wilt openen — klik op **"Open toch"**
+
+   Zie je geen "Open toch" knop? Ga dan naar **Systeeminstellingen → Privacy en beveiliging**, scroll naar beneden en klik op **"Open toch"** naast de melding over Brouwerij Admin.
 
 ### macOS (Intel)
 
-1. Download **`Brouwerij.Admin-v1.2.5-x64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+1. Download **`Brouwerij.Admin-v1.3.0-x64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
 2. Volg dezelfde stappen als hierboven bij Apple Silicon
 
 ---
@@ -56,8 +59,8 @@ Via het menu **Bestand → Data map openen** open je de map direct.
 **Waarom toont Windows een beveiligingswaarschuwing?**  
 De app is niet voorzien van een betaald code-signing certificaat. De app is volledig open source en veilig — je kunt de broncode bekijken in deze repository.
 
-**macOS zegt "beschadigd en kan niet worden geopend" — wat nu?**  
-Download de nieuwste versie — vanaf v1.2.5 is de app ad-hoc gesigneerd en opent hij gewoon via dubbelklik.
+**macOS waarschuwt dat de ontwikkelaar niet geverifieerd kan worden — wat nu?**  
+Dit is normaal voor apps zonder betaald Apple Developer certificaat. Klik op **"Open toch"** in het dialoogvenster. Zie je die knop niet, ga dan naar **Systeeminstellingen → Privacy en beveiliging** en klik daar op **"Open toch"**. Je hoeft dit maar één keer te doen.
 
 **Werkt de app ook als Home Assistant addon?**  
 Ja! De originele HA addon staat in de [Brew-admin-HA-App](https://github.com/jasperbom/Brew-admin-HA-App) repository.
