@@ -16,14 +16,14 @@ Standalone desktop applicatie voor nano brouwerij administratie. Beheer batches,
 
 ### macOS (Apple Silicon — M1/M2/M3/M4)
 
-1. Download **`Brouwerij.Admin-arm64-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
-2. Pak het zip-bestand uit (dubbelklik)
-3. Sleep **Brouwerij Admin.app** naar je **Programma's** map
-4. Dubbelklik om te starten
+1. Download **`Brouwerij.Admin-v1.2.5-arm64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+2. Dubbelklik op het DMG-bestand om het te openen
+3. Sleep **Brouwerij Admin** naar de **Programma's** map in het venster
+4. Start de app via Launchpad of Spotlight
 
 ### macOS (Intel)
 
-1. Download **`Brouwerij.Admin-x64-mac.zip`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
+1. Download **`Brouwerij.Admin-v1.2.5-x64-mac.dmg`** via de [Releases pagina](https://github.com/jasperbom/BrewAdmin-desktop-app/releases/latest)
 2. Volg dezelfde stappen als hierboven bij Apple Silicon
 
 ---

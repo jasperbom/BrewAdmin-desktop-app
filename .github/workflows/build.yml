@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Bundle Python backend with PyInstaller
+      - name: Bundle Python backend met PyInstaller
         run: |
           pip install pyinstaller
           pyinstaller --onefile --name server backend/server.py
@@ -35,7 +35,7 @@ jobs:
           copy dist\server.exe backend-dist\server.exe
         shell: cmd
 
-      - name: Update package.json for bundled backend
+      - name: Update package.json voor bundled backend
         run: |
           $pkg = Get-Content package.json | ConvertFrom-Json
           $pkg.build.extraResources = @(@{from="backend-dist/"; to="backend/"; filter=@("**/*")})
@@ -73,7 +73,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Bundle Python backend with PyInstaller
+      - name: Bundle Python backend met PyInstaller
         run: |
           pip install pyinstaller
           pyinstaller --onefile --name server backend/server.py
@@ -81,57 +81,69 @@ jobs:
           cp dist/server backend-dist/server
           chmod +x backend-dist/server
 
-      - name: Update package.json — zip target, geen auto-signing
+      - name: Update package.json voor bundled backend
         run: |
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json'));
             pkg.build.extraResources = [{ from: 'backend-dist/', to: 'backend/', filter: ['**/*'] }];
-            pkg.build.mac.target = [{ target: 'zip', arch: ['x64', 'arm64'] }];
             pkg.build.mac.identity = null;
+            pkg.build.mac.target = [
+              { target: 'dmg', arch: ['x64'] },
+              { target: 'dmg', arch: ['arm64'] }
+            ];
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
 
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build macOS app (geen signing door electron-builder)
+      - name: Build macOS DMGs (zonder Apple signing)
         run: npm run build:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Ad-hoc codesign alle .app bundles
+      - name: Ad-hoc codesign .app bundles
         run: |
-          for APP in dist/mac*/Brouwerij\ Admin.app; do
+          for APP in "dist/mac/Brouwerij Admin.app" "dist/mac-arm64/Brouwerij Admin.app"; do
             if [ -d "$APP" ]; then
-              echo "▶ Signing: $APP"
+              echo "Signing: $APP"
               xattr -cr "$APP"
+              # Sign van binnenuit naar buiten
+              find "$APP/Contents" -type f | while read f; do
+                codesign --force --sign - "$f" 2>/dev/null || true
+              done
               codesign --force --deep --sign - "$APP"
-              codesign --verify --deep "$APP" && echo "✓ OK"
+              codesign --verify --deep "$APP" && echo "OK: $APP"
             fi
           done
 
-      - name: Zip gesigneerde apps met versienummer
+      - name: Hermaak DMGs met gesigneerde apps
         run: |
           TAG="${{ github.ref_name }}"
-          for DIR in dist/mac dist/mac-arm64; do
-            APP="$DIR/Brouwerij Admin.app"
+          for ARCH in x64 arm64; do
+            if [ "$ARCH" = "arm64" ]; then
+              SRCDIR="dist/mac-arm64"
+            else
+              SRCDIR="dist/mac"
+            fi
+            APP="$SRCDIR/Brouwerij Admin.app"
             if [ -d "$APP" ]; then
-              ARCH=$(echo "$DIR" | grep -q "arm64" && echo "arm64" || echo "x64")
-              ZIPNAME="Brouwerij.Admin-${TAG}-${ARCH}-mac.zip"
-              echo "Zipping $APP → $ZIPNAME"
-              cd "$DIR"
-              zip -r "../../$ZIPNAME" "Brouwerij Admin.app"
-              cd ../..
+              DMGNAME="Brouwerij.Admin-${TAG}-${ARCH}-mac.dmg"
+              hdiutil create -volname "Brouwerij Admin" \
+                -srcfolder "$APP" \
+                -ov -format UDZO \
+                "$DMGNAME"
+              echo "Aangemaakt: $DMGNAME"
             fi
           done
-          ls *.zip
+          ls *.dmg
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: mac-app
-          path: "*.zip"
+          path: "*.dmg"
 
   # ── Release ──────────────────────────────────────────────────────────────────
   create-release:
