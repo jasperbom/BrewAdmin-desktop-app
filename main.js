@@ -105,7 +105,14 @@ function startBackend() {
   killPortAndStart();
 
   const args = backend.script ? [backend.script] : [];
-  const env = { ...process.env, PORT: String(PORT), DATA_DIR: dataDir };
+
+  // Bepaal pad naar de frontend HTML
+  const staticFile = app.isPackaged
+    ? path.join(process.resourcesPath, 'static', 'index.html')
+    : path.join(__dirname, 'static', 'index.html');
+
+  const env = { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, STATIC_FILE: staticFile };
+  console.log('STATIC_FILE:', staticFile, 'bestaat:', require('fs').existsSync(staticFile));
 
   console.log('Backend starten:', backend.exe, args.join(' '));
   backendProcess = spawn(backend.exe, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
