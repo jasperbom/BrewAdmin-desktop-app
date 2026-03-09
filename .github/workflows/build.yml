@@ -33,6 +33,7 @@ jobs:
           pyinstaller --onefile --name server backend/server.py
           mkdir backend-dist
           copy dist\server.exe backend-dist\server.exe
+          copy backend\server.py backend-dist\server.py
         shell: cmd
 
       - name: Update package.json voor bundled backend
@@ -80,6 +81,7 @@ jobs:
           mkdir -p backend-dist
           cp dist/server backend-dist/server
           chmod +x backend-dist/server
+          cp backend/server.py backend-dist/server.py
 
       - name: Update package.json voor bundled backend
         run: |
@@ -109,7 +111,6 @@ jobs:
             if [ -d "$APP" ]; then
               echo "Signing: $APP"
               xattr -cr "$APP"
-              # Sign van binnenuit naar buiten
               find "$APP/Contents" -type f | while read f; do
                 codesign --force --sign - "$f" 2>/dev/null || true
               done

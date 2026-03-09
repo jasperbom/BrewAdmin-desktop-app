@@ -22,38 +22,68 @@ function ensureDataDir() {
 }
 
 // ── Python backend ────────────────────────────────────────────────────────────
-function getPythonExecutable() {
+function findBackend() {
+  // 1. Gebundelde binary (via PyInstaller in GitHub Actions)
   if (app.isPackaged) {
-    // In packaged app, use bundled python binary
-    const platform = process.platform;
     const base = path.join(process.resourcesPath, 'backend');
-    if (platform === 'win32') return path.join(base, 'server', 'server.exe');
-    return path.join(base, 'server', 'server');
+    const bundledBin = process.platform === 'win32'
+      ? path.join(base, 'server.exe')
+      : path.join(base, 'server');
+    if (fs.existsSync(bundledBin)) {
+      console.log('Gebruik gebundelde binary:', bundledBin);
+      return { exe: bundledBin, script: null };
+    }
+    console.warn('Geen gebundelde binary gevonden, val terug op system Python...');
   }
-  // Development: use system python
-  return process.platform === 'win32' ? 'python' : 'python3';
-}
 
-function getServerScript() {
-  if (app.isPackaged) return null; // packaged binary doesn't need a script
-  return path.join(__dirname, 'backend', 'server.py');
+  // 2. System Python + server.py (fallback)
+  const scriptPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'backend', 'server.py')
+    : path.join(__dirname, 'backend', 'server.py');
+
+  const pythonCandidates = process.platform === 'win32'
+    ? ['python', 'python3', 'py']
+    : ['python3', 'python', '/usr/bin/python3', '/usr/local/bin/python3',
+       '/opt/homebrew/bin/python3'];
+
+  for (const py of pythonCandidates) {
+    try {
+      const result = require('child_process').spawnSync(py, ['--version'], { timeout: 2000 });
+      if (result.status === 0) {
+        console.log('Gebruik system Python:', py, '+ script:', scriptPath);
+        return { exe: py, script: scriptPath };
+      }
+    } catch (e) { /* probeer volgende */ }
+  }
+
+  return null; // niets gevonden
 }
 
 function startBackend() {
   const dataDir = ensureDataDir();
-  const exe = getPythonExecutable();
-  const script = getServerScript();
+  const backend = findBackend();
 
-  const args = script ? [script] : [];
+  if (!backend) {
+    dialog.showErrorBox(
+      'Python niet gevonden',
+      'Brouwerij Admin kon niet starten omdat Python niet is gevonden.\n\n' +
+      'Installeer Python via https://python.org en start de app opnieuw.\n\n' +
+      '(Of download de nieuwste versie van de app — die bevat Python ingebouwd.)'
+    );
+    app.quit();
+    return;
+  }
+
+  const args = backend.script ? [backend.script] : [];
   const env = { ...process.env, PORT: String(PORT), DATA_DIR: dataDir };
 
-  console.log(`Starting backend: ${exe} ${args.join(' ')}`);
-  backendProcess = spawn(exe, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  console.log('Backend starten:', backend.exe, args.join(' '));
+  backendProcess = spawn(backend.exe, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
 
   backendProcess.stdout.on('data', d => console.log('[backend]', d.toString().trim()));
   backendProcess.stderr.on('data', d => console.error('[backend]', d.toString().trim()));
   backendProcess.on('exit', (code) => {
-    console.log(`Backend exited with code ${code}`);
+    console.log('Backend afgesloten met code', code);
     backendProcess = null;
   });
 }
