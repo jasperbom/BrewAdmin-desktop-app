@@ -21,8 +21,8 @@ jobs:
       - name: Haal nieuwste index.html op van HA addon
         run: |
           curl -fsSL \
-            "https://raw.githubusercontent.com/jasperbom/Brew-admin-HA-App/main/Brew-admin-HA-App/static/index.html" \
-            -o /tmp/index_new.html
+            "https://raw.githubusercontent.com/jasperbom/BrewAdmin-HA-App/main/brew-admin.html" \
+             -o /tmp/index_new.html
 
       - name: Vergelijk met huidige versie
         id: check
