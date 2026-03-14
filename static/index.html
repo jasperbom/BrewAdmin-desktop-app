@@ -94,20 +94,26 @@ const _postToServer = (key, data) => {
   });
 };
 
-const useStore = (key, initial=[]) => {
+const useStore = (key, initial=[], { secure=false }={}) => {
   _allKeys.add(key); // Set deduplicates — safe to call on every render
-  const [data, setData] = useState(() => lsGet(key, initial));
+  const [data, setData] = useState(() => secure ? initial : lsGet(key, initial));
   const modified = React.useRef(false);
 
   React.useEffect(() => {
     fetch(API_BASE + key)
       .then(r => {
         _serverReachable = true;
-        if (r.ok) return r.json();
+        if (r.ok) {
+          // Server heeft data — verwijder eventuele oude ls-kopie bij secure sleutels
+          if (secure) localStorage.removeItem('craftery_' + key);
+          return r.json();
+        }
         if (r.status === 404) {
-          // Server doesn't have this key yet — push current data up (localStorage or initial default)
+          // Server heeft deze sleutel nog niet — push localStorage (of initial) omhoog.
+          // Bij secure: ook eventuele oude ls-data migreren (eenmalig upgrade-pad) en dan verwijderen.
           const localRaw = localStorage.getItem('craftery_' + key);
           const toSync = localRaw !== null ? JSON.parse(localRaw) : initial;
+          if (secure && localRaw !== null) localStorage.removeItem('craftery_' + key);
           try { _postToServer(key, toSync); } catch(e) {}
         }
         return null;
@@ -115,7 +121,8 @@ const useStore = (key, initial=[]) => {
       .then(d => {
         _fetchedKeys.add(key);
         if (d !== null && d !== undefined && !modified.current) {
-          setData(d); lsSet(key, d);
+          setData(d);
+          if (!secure) lsSet(key, d);
         }
       })
       .catch(() => {
@@ -128,7 +135,7 @@ const useStore = (key, initial=[]) => {
     modified.current = true;
     setData(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
-      lsSet(key, next);
+      if (!secure) lsSet(key, next);
       _postToServer(key, next);
       return next;
     });
@@ -166,18 +173,33 @@ const SyncDot = () => {
 const newId = (arr) => arr.length ? Math.max(0, ...arr.map(x=>x.id))+1 : 1;
 
 // ===== BREWFATHER INTEGRATION =====
-const BF_BASE = 'https://api.brewfather.app/v2';
+// Alle Brewfather-aanroepen lopen via de backend-proxy zodat de API-credentials
+// nooit in de browser-netwerkinspector verschijnen.
 const BF_TO_APP = {Planning:'Gepland',Brewing:'Brouwen',Fermenting:'Vergisten',Conditioning:'Conditioneren',Completed:'Verpakt',Archived:'Gesloten'};
-const bfHdr = (uid,key) => ({'Authorization':'Basic '+btoa(uid+':'+key),'Content-Type':'application/json'});
-const bfFetch = (uid,key,path,opts={}) => fetch(BF_BASE+path,{...opts,headers:{...bfHdr(uid,key),...(opts.headers||{})}});
-const bfTest  = async (uid,key) => { try { const r=await bfFetch(uid,key,'/batches?limit=1'); return r.ok; } catch { return false; } };
-const bfGetBatches = async (uid,key) => {
+const _BF_PROXY = (() => { const p = window.location.pathname; return p.replace(/[^/]*$/, '') + 'api/brewfather/'; })();
+const _BF_TEST  = (() => { const p = window.location.pathname; return p.replace(/[^/]*$/, '') + 'api/brewfather/test'; })();
+// bfFetch stuurt geen credentials mee — de backend leest ze zelf van schijf.
+const bfFetch = (path, opts={}) => fetch(_BF_PROXY + path.replace(/^\//, ''), opts);
+// bfTest POST'et de (nog niet opgeslagen) credentials naar onze eigen backend.
+const bfTest = async (uid, key) => {
+  try {
+    const r = await fetch(_BF_TEST, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({userId: uid, apiKey: key}),
+    });
+    if (!r.ok) return false;
+    const d = await r.json();
+    return d.ok === true;
+  } catch { return false; }
+};
+const bfGetBatches = async () => {
   const statuses = ['Planning','Brewing','Fermenting','Conditioning','Completed'];
   const all = [];
   for (const s of statuses) {
     let startAfter = null;
     for (;;) {
-      const r = await bfFetch(uid,key,`/batches?status=${s}&complete=true&limit=50${startAfter?'&start_after='+startAfter:''}`);
+      const r = await bfFetch(`batches?status=${s}&complete=true&limit=50${startAfter?'&start_after='+startAfter:''}`);
       if (!r.ok) break;
       const d = await r.json();
       all.push(...d);
@@ -188,11 +210,11 @@ const bfGetBatches = async (uid,key) => {
   return all;
 };
 
-const bfGetRecipes = async (uid, key) => {
+const bfGetRecipes = async () => {
   const all = [];
   let startAfter = null;
   for (;;) {
-    const r = await bfFetch(uid, key, `/recipes?complete=true&limit=50${startAfter?'&start_after='+startAfter:''}`);
+    const r = await bfFetch(`recipes?complete=true&limit=50${startAfter?'&start_after='+startAfter:''}`);
     if (!r.ok) break;
     const d = await r.json();
     all.push(...d);
@@ -1140,7 +1162,7 @@ function BatchesPage({ing, setIng, lots, setLots, bat, setBat, bi, setBi, av, se
     }
     setBfSyncing(true); setBfMsg('');
     try {
-      const bfBatches = await bfGetBatches(bfCreds.userId, bfCreds.apiKey);
+      const bfBatches = await bfGetBatches();
       let added=0, updated=0;
       const newBatches=[], newBis=[], updBatches=[], refreshBisFor=[];
       for (const bfB of bfBatches) {
@@ -2537,7 +2559,7 @@ function AfvullenPage({bat, setBat, av, setAv, uit, setUit, acc, setAcc, verpakk
               const ac = accijnsCalc(liter, selB?.ABV||0, r1, r2);
               return <div className="p-2 bg-amber-50 rounded text-xs text-amber-800">
                 {liter.toFixed(1)}L → accijns: <strong>{fmt(ac)}</strong>
-                {selB?.ABV && <span className="ml-1 text-amber-600">(max({(liter/100).toFixed(3)}hL × {selB.ABV}% × €7,51, {(liter/100).toFixed(3)}hL × €24,17))</span>}
+                {selB?.ABV && <span className="ml-1 text-amber-600">(max({(liter/100).toFixed(3)}hL × {selB.ABV}% × €{r1.toFixed(2).replace('.',',')}, {(liter/100).toFixed(3)}hL × €{r2.toFixed(2).replace('.',',')}))</span>}
               </div>;
             })()}
             <div className="flex justify-end gap-2">
@@ -3067,7 +3089,7 @@ function ReceptenPage({ing, lots, bfCreds, recepten, setRecepten, verborgen, set
     }
     setSyncing(true); setMsg('');
     try {
-      const recs = await bfGetRecipes(bfCreds.userId, bfCreds.apiKey);
+      const recs = await bfGetRecipes();
       setRecepten(recs);
       setMsg(`✓ ${recs.length} recept${recs.length!==1?'en':''} gesynchroniseerd`);
     } catch(e) { setMsg('⚠ Sync mislukt: '+(e.message||String(e))); }
@@ -3673,6 +3695,16 @@ function InstellingenPage({accijnsInst, setAccijnsInst, log, setLog, doExport, d
   const [bfTesting, setBfTesting] = React.useState(false);
   const [bfMsg, setBfMsg]     = React.useState('');
 
+  // Omdat useStore({secure:true}) asynchroon laadt (geen localStorage), het formulier
+  // eenmalig invullen zodra de server-data beschikbaar is.
+  const bfFormInitialized = React.useRef(false);
+  React.useEffect(() => {
+    if (!bfFormInitialized.current && (bfCreds?.userId || bfCreds?.apiKey || bfCreds?.enabled)) {
+      setBfForm({userId: bfCreds.userId||'', apiKey: bfCreds.apiKey||'', enabled: bfCreds.enabled||false});
+      bfFormInitialized.current = true;
+    }
+  }, [bfCreds?.userId, bfCreds?.apiKey, bfCreds?.enabled]);
+
   const saveBf = () => {
     setBfCreds(prev => ({...prev, ...bfForm}));
     setBfMsg('✓ Opgeslagen');
@@ -3904,7 +3936,7 @@ function App() {
   const [archiefIngeklapt, setArchiefIngeklapt] = useStore('voorraad_archief_ingeklapt', false);
   const [accijnsInst, setAccijnsInst] = useStore('accijns_instellingen', {tarief_per_hl_abv:7.51,tarief_per_hl:24.17});
   const [logo, setLogo] = useStore('app_logo', null);
-  const [bfCreds, setBfCreds] = useStore('brewfather_creds', {userId:'', apiKey:'', enabled:false, lastSync:null});
+  const [bfCreds, setBfCreds] = useStore('brewfather_creds', {userId:'', apiKey:'', enabled:false, lastSync:null}, {secure:true});
   const [recepten, setRecepten] = useStore('recepten', []);
   const [verborgen, setVerborgen] = useStore('recepten_verborgen', []);
   const [gearchiveerdeTags, setGearchiveerdeTags] = useStore('recepten_gearchiveerde_tags', []);
@@ -3922,7 +3954,7 @@ function App() {
     bfAutoSynced.current = true;
     (async () => {
       try {
-        const bfBatches = await bfGetBatches(bfCreds.userId, bfCreds.apiKey);
+        const bfBatches = await bfGetBatches();
         const newBatches=[], newBis=[], updBatches=[];
         for (const bfB of bfBatches) {
           const existing = bat.find(b => b.brewfather_id === bfB._id ||
