@@ -4,7 +4,8 @@
 
 set -e
 
-ADDON_REPO="https://raw.githubusercontent.com/jasperbom/BrewAdmin-HA-App/main/brew-admin.html"
+ADDON_REPO="https://raw.githubusercontent.com/jasperbom/Brew-admin-HA-App/main/brew-admin.html"
+TARGET="static/index.html"
 
 echo "📥 Nieuwe index.html ophalen van HA addon..."
 curl -fsSL "$ADDON_REPO" -o "$TARGET"
