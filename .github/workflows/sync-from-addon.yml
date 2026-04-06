@@ -18,16 +18,29 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Haal nieuwste index.html op van HA addon
+      - name: Checkout HA App
+        uses: actions/checkout@v4
+        with:
+          repository: jasperbom/BrewAdmin-HA-App
+          path: ha-app
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ha-app/package-lock.json
+
+      - name: Build HA App frontend
         run: |
-          curl -fsSL \
-            "https://raw.githubusercontent.com/jasperbom/Brew-admin-HA-App/main/brew-admin.html" \
-             -o /tmp/index_new.html
+          cd ha-app
+          npm ci
+          npm run build
 
       - name: Vergelijk met huidige versie
         id: check
         run: |
-          if ! diff -q static/index.html /tmp/index_new.html > /dev/null 2>&1; then
+          if ! diff -q static/index.html ha-app/dist/index.html > /dev/null 2>&1; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "✅ Nieuwe versie gevonden!"
           else
@@ -56,7 +69,7 @@ jobs:
 
       - name: Kopieer nieuwe frontend
         if: steps.check.outputs.changed == 'true'
-        run: cp /tmp/index_new.html static/index.html
+        run: cp ha-app/dist/index.html static/index.html
 
       - name: Commit en tag nieuwe versie
         if: steps.check.outputs.changed == 'true'

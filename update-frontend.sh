@@ -1,14 +1,25 @@
 #!/bin/bash
 # Update frontend van de HA addon naar de desktop app
 # Gebruik: ./update-frontend.sh
+# Vereiste: Node.js 20+ en git geïnstalleerd
 
 set -e
 
-ADDON_REPO="https://raw.githubusercontent.com/jasperbom/Brew-admin-HA-App/main/brew-admin.html"
+HA_APP_DIR=$(mktemp -d)
 TARGET="static/index.html"
 
-echo "📥 Nieuwe index.html ophalen van HA addon..."
-curl -fsSL "$ADDON_REPO" -o "$TARGET"
+echo "📥 HA App ophalen van GitHub..."
+git clone --depth=1 https://github.com/jasperbom/BrewAdmin-HA-App.git "$HA_APP_DIR"
+
+echo "🔨 Frontend bouwen..."
+cd "$HA_APP_DIR"
+npm ci
+npm run build
+cd -
+
+echo "📋 Frontend kopiëren naar $TARGET..."
+cp "$HA_APP_DIR/dist/index.html" "$TARGET"
+rm -rf "$HA_APP_DIR"
 
 echo "✅ Frontend bijgewerkt: $TARGET"
 echo ""
